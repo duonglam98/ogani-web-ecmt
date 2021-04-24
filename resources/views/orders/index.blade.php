@@ -150,6 +150,7 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                @if ($productOrders)
                                 @foreach ($productOrders as $productOrder)
                                 <tr>
                                     <td class="shoping__cart__item">
@@ -162,11 +163,11 @@
                                     <td class="shoping__cart__quantity">
                                         <div class="quantity">
                                             <div class="pro-qty">
-                                                <input type="text" value="{{ $productOrder->quantity }}">
+                                                <input type="text" class="product-quantity" value="{{ $productOrder->quantity }}">
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="shoping__cart__total">
+                                    <td class="shoping__cart__total total-product-price">
                                         ${{ $productOrder->price * $productOrder->quantity }}
                                     </td>
                                     <td class="shoping__cart__item__close">
@@ -174,6 +175,11 @@
                                     </td>
                                 </tr>
                                 @endforeach
+                                @else
+                                <tr>
+                                    Gio hang trong
+                                </tr>
+                                @endif
                             </tbody>
                         </table>
                     </div>
@@ -202,10 +208,10 @@
                     <div class="shoping__checkout">
                         <h5>Cart Total</h5>
                         <ul>
-                            <li>Subtotal <span>$454.98</span></li>
-                            <li>Total <span>$454.98</span></li>
+                            <li>Subtotal <span class="total-price">$454.98</span></li>
+                            <li>Total <span class="total-price">$454.98</span></li>
                         </ul>
-                        <a href="#" class="primary-btn">PROCEED TO CHECKOUT</a>
+                        <a href="#" class="primary-btn cart-checkout">PROCEED TO CHECKOUT</a>
                     </div>
                 </div>
             </div>
@@ -223,31 +229,19 @@
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             }
         });
-
         $('.delete-product').click(function(event) {
-            console.log('click');
             event.preventDefault();
-            alert('Bạn có chắc chắn xoá sản phẩm?');
             var productElement = $(this).parent().parent();
-            var productOrderId = $(this).data('product_order_id'); 
-            console.log(productOrderId);
-           
+            var productOrderId = $(this).data('product_order_id');
             var url = '/orders/' + productOrderId;
-
             $.ajax(url, {
                 type: 'DELETE',
-               
                 success: function (result) {
-                    console.log('suc');
                     var resultObj = JSON.parse(result);
-                    if (resultObj.status){
-                        //Xoá sản phẩm khỏi giỏ hàng
-                         alert(resultObj.msg);
-                         productElement.remove();
-                         
-
+                    if (resultObj.status) {
+                        alert(resultObj.msg);
+                        productElement.remove();
                     } else {
-                        //Báo lỗi
                         alert(resultObj.msg);
                         location.reload();
                     }
@@ -257,7 +251,76 @@
                 }
             });
         });
-
+        $('.qtybtn').addClass('update-quantity');
+        $('.update-quantity').click(function(event) {
+            event.preventDefault();
+            var quantity = parseInt($(this).parent().find('input').val());
+            if ($(this).hasClass('inc')) {
+                quantity++;
+                $(this).parent().find('.dec').css('display', '');
+            } else {
+                if (quantity <= 1) {
+                    $(this).css('display', 'none');
+                    alert('The quantity has been great than 0');
+                    return false;
+                }
+                quantity--;
+                if (quantity <= 1) {
+                    $(this).css('display', 'none');
+                }
+            }
+            var totalProductPrice = $(this).closest('tr').find('.total-product-price');
+            var productOrderId = $(this).closest('tr').find('.delete-product').data('product_order_id');
+            var url = '/orders/' + productOrderId;
+            $.ajax(url, {
+                type: 'PUT',
+                data: {
+                    quantity: quantity
+                },
+                success: function (result) {
+                    var resultObj = JSON.parse(result);
+                    if (!resultObj.status) {
+                        alert(resultObj.msg);
+                        location.reload();
+                    }
+                    totalProductPrice.text('$' + resultObj.price);
+                    calculatePrice();
+                },
+                error: function () {
+                    alert('Something went wrong!');
+                }
+            });
+        });
+        $('.cart-checkout').click(function(event) {
+            event.preventDefault();
+            var url = '/orders/checkout';
+            $.ajax(url, {
+                type: 'POST',
+                success: function (result) {
+                    var resultObj = JSON.parse(result);
+                    alert(resultObj.msg);
+                    location.reload();
+                },
+                error: function () {
+                    alert('Something went wrong!');
+                }
+            });
+        });
+        calculatePrice();
+        function calculatePrice()
+        {
+            var totalPrice = 0;
+            $('.total-product-price').each(function() {
+                var price = parseInt($(this).text().replace('$', ''));
+                totalPrice += price;
+            });
+            $('.total-price').text('$' + totalPrice);
+            var totalQuantity = 0;
+            $('.product-quantity').each(function() {
+                totalQuantity += parseInt($(this).val());
+            });
+            $('#cart-number').text(totalQuantity);
+        }
     });
 </script>
 @endsection
